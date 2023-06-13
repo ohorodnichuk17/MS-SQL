@@ -1,0 +1,176 @@
+CREATE DATABASE Hospitalll
+GO
+
+USE Hospitalll
+GO
+
+CREATE TABLE Departments
+(
+	Id int PRIMARY KEY IDENTITY NOT NULL,
+	Building int NOT NULL CHECK(Building BETWEEN 1 AND 5),
+	Name nvarchar(100) NOT NULL CHECK(Name <> '') UNIQUE
+)
+GO
+
+SET IDENTITY_INSERT Departments ON
+INSERT INTO Departments(Id, Building, Name)
+VALUES (1, 1, 'Surgery'),
+	   (2, 2, 'Trauma'),	
+	   (3, 3, 'Neurological'),
+	   (4, 4, 'therapeutic'),
+	   (5, 5, 'Septic')
+GO
+
+SELECT * FROM Departments
+SET IDENTITY_INSERT Departments OFF
+
+CREATE TABLE Doctors
+(
+	Id int PRIMARY KEY IDENTITY NOT NULL,
+	Name nvarchar(max) NOT NULL CHECK(Name <> ''),
+	Surname nvarchar(max) NOT NULL CHECK(Surname <> ''),
+	Premium money NOT NULL CHECK(Premium >= 0) default(0),
+	Salary money NOT NULL CHECK(Salary >= 0)
+)
+GO
+
+SET IDENTITY_INSERT Doctors ON
+INSERT INTO Doctors(Id, Name, Surname, Premium, Salary)
+VALUES (1, 'Daisie', 'Frederick', 200, 8000),
+	   (2, 'Tyler', 'Montgomery', 199, 12000),
+	   (3, 'Sapphire', 'Duke', 273, 9000),
+	   (4, 'Maddie', 'Munoz', 1833, 24000),
+	   (5, 'Uzair', 'Nolan', 231, 14000),
+	   (6, 'Russell', 'Dillon', 987, 5000),
+	   (7, 'Ellie-May', 'Friedman', 1000, 90000)
+GO
+
+SELECT * FROM Doctors
+SET IDENTITY_INSERT Doctors OFF
+
+CREATE TABLE Examinations
+(
+	Id int PRIMARY KEY IDENTITY NOT NULL,
+	Name nvarchar(100) NOT NULL CHECK(Name <> '') UNIQUE
+)
+GO
+
+SET IDENTITY_INSERT Examinations ON
+INSERT INTO Examinations(Id, Name)
+VALUES(1, 'Inspection'),
+	  (2, 'Auscultation'),
+	  (3, 'Percussion'),
+	  (4, 'Palpation'),
+	  (5, 'Manipulation')
+GO
+
+SELECT * FROM Examinations
+SET IDENTITY_INSERT Examinations OFF
+
+CREATE TABLE Wards
+(
+	Id INT PRIMARY KEY NOT NULL IDENTITY(1,1),
+	DepartmentId INT NOT NULL FOREIGN KEY REFERENCES Departments(Id), --5
+	Places INT NOT NULL CHECK(Places > 1),
+	Name NVARCHAR(20) NOT NULL CHECK(Name <> '') UNIQUE
+)
+GO
+
+SET IDENTITY_INSERT Wards ON
+INSERT INTO Wards(Id, DepartmentId, Places, Name)
+VALUES(1, 4, 12, 'General'),
+	  (2, 3, 9, 'Surgery'),
+	  (3, 2, 5, 'Cardiothoracic'),
+	  (4, 5, 2, 'Neurology'),
+	  (5, 3, 21, 'Ophthalmology'),
+	  (6, 2, 13, 'Rehabilitation'),
+	  (7, 4, 15, 'Endocrinology')	
+GO
+
+SELECT * FROM Wards
+SET IDENTITY_INSERT Wards OFF
+
+CREATE TABLE DoctorsExaminations
+(
+	Id INT PRIMARY KEY IDENTITY NOT NULL,
+	StartTime TIME NOT NULL CHECK(StartTime BETWEEN '08:00' AND '18:00'),
+	EndTime TIME NOT NULL  CHECK(EndTime BETWEEN '08:00' AND '18:00'),
+	CHECK(EndTime > StartTime),
+	DoctorId INT NOT NULL FOREIGN KEY REFERENCES Doctors(Id),--7
+	ExaminationId INT NOT NULL FOREIGN KEY REFERENCES Examinations(Id),--5
+	WardId INT NOT NULL FOREIGN KEY REFERENCES Wards(Id) --7
+)
+GO
+
+SET IDENTITY_INSERT DoctorsExaminations ON
+INSERT INTO DoctorsExaminations(Id, StartTime, EndTime, DoctorId, ExaminationId, WardId)
+VALUES(1, '9:20', '10:30', 4, 2, 7),
+	  (2, '8:20', '9:30', 3, 4, 2),
+	  (3, '11:40', '12:00', 7, 2, 3),
+	  (4, '10:00', '13:35', 1, 5, 4),
+	  (5, '14:00', '14:30', 3, 1, 5),
+	  (6, '10:20', '10:30', 5, 1, 6),
+	  (7, '16:00', '17:30', 3, 5, 4),
+	  (8, '12:30', '12:55', 2, 1, 5)
+GO
+
+SELECT * FROM DoctorsExaminations
+SET IDENTITY_INSERT DoctorsExaminations OFF
+
+-- 1. Вивести кількість палат, місткість яких більша за 10.
+SELECT Places, COUNT(Id) AS 'Count Id'
+FROM Wards
+WHERE Places > 10
+GROUP BY Places
+
+-- 2. Вивести назви корпусів та кількість палат у кожному з них.
+SELECT Name, COUNT(Places) AS 'Count of wards'
+FROM Wards 
+GROUP BY Name  
+
+-- 3. Вивести назви відділень та кількість палат у кожному з них.
+SELECT D.Name, COUNT(W.Places) AS 'Count of wards'
+FROM Departments AS D JOIN Wards AS W ON W.DepartmentId = D.Id 
+GROUP BY D.Name  
+
+-- 4. Вивести назви відділень та сумарну надбавку лікарів у кожному з них.
+SELECT Name, SUM(Premium) AS 'Total premium'
+FROM Doctors
+GROUP BY Name
+
+-- 5. Вивести назви відділень, у яких проводять обстеження 5 та більше лікарів.
+SELECT Departments.[Name], Count(Doctors.Id) AS '5 or more doctors conduct examinations'
+FROM Doctors, Departments
+WHERE Departments.Id = Doctors.Id
+GROUP BY Departments.[Name]
+
+-- 6. Вивести кількість лікарів та їх сумарну зарплату (сума ставки та надбавки).
+SELECT Id, SUM((coalesce(Salary ,0)) + (coalesce(Premium ,0))) AS 'Total salary'
+FROM Doctors 
+GROUP BY Id
+
+-- 7.  Вивести середню зарплату (сума ставки та надбавки) лікарів.
+SELECT AVG((coalesce(Salary ,0)) + (coalesce(Premium ,0))) AS 'Doctor`s total salary'
+FROM Doctors
+
+-- 8. Вивести назви палат із мінімальною місткістю.
+SELECT TOP (1) WITH ties Name
+FROM Wards
+GROUP BY Name
+ORDER BY MIN(Places);
+
+SELECT [Name], Places
+FROM Wards
+WHERE Places=(SELECT MIN(Places) FROM Wards)
+
+-- Вивести в яких із корпусів 1, 6, 7 та 8, сумарна кількість місць у палатах перевищує 100. 
+-- При цьому враховувати лише палати з кількістю місць більше 10.
+SELECT tmp.Building, tmp.sum_wards
+FROM
+(
+    SELECT Departments.Building, SUM (Wards.Places) AS sum_wards
+    FROM Departments LEFT JOIN Wards ON Wards.DepartmentId = Departments.Id
+    WHERE Wards.Places > 10
+    GROUP BY Departments.Building
+) AS tmp
+WHERE tmp.sum_wards > 100
